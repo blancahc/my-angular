@@ -23,6 +23,7 @@ Scope.prototype.$$digestOnce = function () {
     var self = this;
     var newValue, oldValue, dirty;
     _.forEach(this.$$watchers, function(watcher) {
+        try { 
         newValue = watcher.watchFn(self);
         oldValue = watcher.last;
         if(!self.$$areEqual(newValue, oldValue, watcher.valueEq)) {
@@ -35,6 +36,9 @@ Scope.prototype.$$digestOnce = function () {
         } else if (self.$$lastDirtyWatch === watcher) {
             return false;
         }
+    } catch(e) {
+        console.error(e);
+    }
     });
     return dirty;
 };
