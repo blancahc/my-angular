@@ -8,6 +8,7 @@ function Scope() {
     this.$$asyncQueue = [];
     this.$$applyAsyncQueue = [];
     this.$$applyAsyncId = null;
+    this.$$postDigestQueue = [];
     this.$$phase = null;
 }
 function initWatchVal() { }
@@ -72,8 +73,13 @@ Scope.prototype.$digest = function() {
 
     do {
         while (this.$$asyncQueue.length) {
-            var asyncTask = this.$$asyncQueue.shift();
-            asyncTask.scope.$eval(asyncTask.expression);
+            try{
+                var asyncTask = this.$$asyncQueue.shift();
+                asyncTask.scope.$eval(asyncTask.expression);
+            } catch (e) {
+                console.error(e);
+            }
+            
         }
         dirty = this.$$digestOnce();
         if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
@@ -82,6 +88,17 @@ Scope.prototype.$digest = function() {
         }
     } while (dirty || this.$$asyncQueue.length);
     this.$clearPhase();
+
+    //remove $$postDigestQueue function and immediately run it. 
+        //unshift() returns what is removed, in this case a function and placing () 
+        //invokes it right away. 
+    while(this.$$postDigestQueue.length) {
+        try {
+            this.$$postDigestQueue.shift()();
+        } catch (e) {
+            console.error(e);
+        }
+    }
 };
 
 Scope.prototype.$$areEqual = function(newValue, oldValue, valueEq) {
@@ -129,7 +146,11 @@ Scope.prototype.$evalAsync = function(expr) {
 //the $applyAsync timeout should be cancelled. the $$flushApplyAsync cancels the $applyAsync
 Scope.prototype.$$flushApplyAsync = function() {
     while (this.$$applyAsyncQueue.length) {
-        this.$$applyAsyncQueue.shift()();
+        try {
+            this.$$applyAsyncQueue.shift()();
+        } catch (e) {
+            console.error(e);
+        }
     }
     this.$$applyAsyncId = null;
 };
@@ -158,5 +179,9 @@ Scope.prototype.$beginPhase = function(phase) {
 
 Scope.prototype.$clearPhase = function() {
     this.$$phase = null;
+};
+
+Scope.prototype.$$postDigest = function(fn) {
+    this.$$postDigestQueue.push(fn);
 };
 module.exports = Scope;
